@@ -35,6 +35,11 @@ class ConfigurationController extends Controller
      */
     public function show($id)
     {
+        $loggedUser = Auth::user();
+        if ($id != $loggedUser->id) {
+            $this->error("You can view only yours configuration", 404);
+        }
+
         $configuration = Configuration::where('user_id', $id)->first();
         if ($configuration) {
             $this->success($configuration, 200);
@@ -52,8 +57,17 @@ class ConfigurationController extends Controller
      */
     public function update($request, $id)
     {
-        $configuration = Configuration::where('user_id', $id)->first();
         $loggedUser = Auth::user();
+        if ($id != $loggedUser->id) {
+            $this->error("You can update only yours configuration", 404);
+        }
+
+        $configuration = Configuration::where('user_id', $id)->first();
+
+        if (!$configuration) {
+            $this->error("Can't find configuration for this user", 404);
+        }
+
         $rules = [
             'user_id'         => 'required|unique:users',
             'version_history' => 'required|boolean',
