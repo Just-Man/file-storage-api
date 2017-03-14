@@ -1,10 +1,5 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: just
- * Date: 12.03.17
- * Time: 05:40
- *
  * Php version 5.6 || 7.0
  *
  * @category Interview
@@ -15,6 +10,7 @@
  */
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
 use Laravel\Lumen\Routing\Controller as BaseController;
 
 /**
@@ -52,5 +48,18 @@ class Controller extends BaseController
     public function error($message, $code)
     {
         return response()->json(['message' => $message], $code);
+    }
+
+    /**
+     * Function validate incoming request
+     *
+     * @param \Illuminate\Http\Request $request incoming request
+     * @param array                    $rules   validations rules
+     *
+     * @return void
+     */
+    public function validateRequest(Request $request, $rules)
+    {
+        $this->validate($request, $rules);
     }
 }

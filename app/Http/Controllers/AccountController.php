@@ -11,8 +11,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Configuration;
 use App\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Lcobucci\JWT\Builder;
+use Lcobucci\JWT\Signer\Hmac\Sha256;
 
 /**
  * Class AccountController
@@ -34,7 +38,8 @@ class AccountController extends Controller
     public function index()
     {
         $users = User::all();
-        return response()->json(['data' => $users], 200);
+
+        return $this->success(['data' => $users], 200);
     }
 
     /**
@@ -42,18 +47,27 @@ class AccountController extends Controller
      *
      * @param Request $request Request array
      *
-     * @return Response
+     * @return \Illuminate\Http\JsonResponse
      */
     public function register(Request $request)
     {
 
-        $this->validateRequest($request);
+        $rules = [
+            'name'     => 'required|string|min:3',
+            'email'    => 'required|email|unique:users',
+            'password' => 'required|min:6',
+        ];
+
+        $this->validateRequest($request, $rules);
 
         $user = User::create(
             [
-                'name'    => $request->get('name'),
+                'name'     => $request->get('name'),
                 'email'    => $request->get('email'),
-                'password' => Hash::make($request->get('password'))
+                'password' => password_hash(
+                    $request->get('password'),
+                    PASSWORD_BCRYPT
+                ),
             ]
         );
 
@@ -61,6 +75,49 @@ class AccountController extends Controller
             ['data' => "The user with with id {$user->id} has been created"],
             201
         );
+    }
+
+    /**
+     * Login function
+     *
+     * @param Request $request input request
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function login(Request $request)
+    {
+        $email = $request->get('email');
+        $password = $request->get('password');
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return $this->error('Email doesn\'t match', 400);
+        }
+
+        if (!password_verify($password, $user->password)) {
+            return $this->error('Password doesn\'t match', 400);
+        }
+        $configurations = Configuration::where('user_id', $user->id)->first();
+
+        $signer = new Sha256();
+        $token = (new Builder())
+            ->setIssuer("Api")
+            ->setAudience("Client Side")
+            ->setIssuedAt(time())
+            ->setExpiration(time() + $configurations->token_time)
+            ->set('user_id', $user->id)
+            ->set('name', $user->name)
+            ->sign($signer, env('TOKEN_KEY'))
+            ->getToken();
+        $data = [
+            'token' => token_get_all($token),
+            'user'  => [
+                "name" => $user['name'],
+            ],
+            'error' => false,
+        ];
+
+        return $this->success($data, 200);
     }
 
     /**
@@ -72,16 +129,17 @@ class AccountController extends Controller
      */
     public function show($id)
     {
-
-        $user = User::find($id);
+        $loggedUser = Auth::user();
+        if ($id != $loggedUser['id']) {
+            return $this->error("You can view only your account", 404);
+        }
+        $user = $loggedUser;
 
         if (!$user) {
-            return response()->json(
-                ['message' => "The user with {$id} doesn't exist"], 404
-            );
+            return $this->error("The user with {$id} doesn't exist", 404);
         }
 
-        return response()->json(['data' => $user], 200);
+        return $this->success(['user' => $user], 200);
     }
 
     /**
@@ -98,18 +156,27 @@ class AccountController extends Controller
         $user = User::find($id);
 
         if (!$user) {
-            return response()->json(
-                ['message' => "The user with {$id} doesn't exist"], 404
-            );
+            return $this->error("The user with {$id} doesn't exist", 404);
         }
 
-        $this->validateRequest($request);
+        $rules = [
+            'name'     => 'string|min:3',
+            'email'    => 'email',
+            'password' => 'min:6',
+        ];
 
-        $user->email = $request->get('email');
-        $user->password = Hash::make($request->get('password'));
+        $this->validateRequest($request, $rules);
+        $user->name = $request->get('name') ? $request->get('name')
+            : $user->name;
+        $user->email = $request->get('email') ? $request->get('email')
+            : $user->email;
+        $user->password = $request->get('password') ? password_hash(
+            $request->get('password'), PASSWORD_BCRYPT
+        ) : $user->password;
 
         $user->save();
-        return response()->json(
+
+        return $this->success(
             ['data' => "The user with with id {$user->id} has been updated"],
             200
         );
@@ -128,34 +195,15 @@ class AccountController extends Controller
         $user = User::find($id);
 
         if (!$user) {
-            return response()->json(
+            return $this->success(
                 ['message' => "The user with {$id} doesn't exist"], 404
             );
         }
 
         $user->delete();
 
-        return response()->json(
+        return $this->success(
             ['data' => "The user with with id {$id} has been deleted"], 200
         );
-    }
-
-    /**
-     * Function validate incoming request
-     *
-     * @param \Illuminate\Http\Request $request incoming request
-     *
-     * @return void
-     */
-    public function validateRequest(Request $request)
-    {
-
-        $rules = [
-            'name'    => 'required|name',
-            'email'    => 'required|email|unique:users',
-            'password' => 'required|min:6'
-        ];
-
-        $this->validate($request, $rules);
     }
 }
