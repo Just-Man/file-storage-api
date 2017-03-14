@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\User;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\ServiceProvider;
 use Lcobucci\JWT\Parser;
 use Lcobucci\JWT\Signer\Hmac\Sha256;
@@ -41,14 +43,12 @@ class AuthServiceProvider extends ServiceProvider
 
                     $verifiedToken = $this->_verifyToken($tokenArray[0][1]);
                     if (!$verifiedToken) {
-                        return response()->json('Token is not verified', 404);
+                        throw new Exception('Token is not verified');
                     }
 
                     $is_validated = $this->_validateToken($verifiedToken);
                     if (!$is_validated) {
-                        return response()->json(
-                            'Token is expired or not valid', 404
-                        );
+                        throw new Exception('Token is expired or not valid');
                     }
                     $id = $is_validated['id'];
                     return User::find($id);

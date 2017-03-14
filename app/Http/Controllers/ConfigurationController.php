@@ -37,14 +37,15 @@ class ConfigurationController extends Controller
     {
         $loggedUser = Auth::user();
         if ($id != $loggedUser->id) {
-            $this->error("You can view only yours configuration", 404);
+            return $this->error("You can view only yours configuration", 404);
         }
 
         $configuration = Configuration::where('user_id', $id)->first();
         if ($configuration) {
-            $this->success($configuration, 200);
+            return $this->success($configuration, 200);
         }
-        $this->error("Can't find configuration for this user", 404);
+
+        return $this->error("Can't find configuration for this user", 404);
     }
 
     /**
@@ -55,37 +56,38 @@ class ConfigurationController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update($request, $id)
+    public function update(Request $request, $id)
     {
         $loggedUser = Auth::user();
         if ($id != $loggedUser->id) {
-            $this->error("You can update only yours configuration", 404);
+            return $this->error("You can update only yours configuration", 404);
         }
 
         $configuration = Configuration::where('user_id', $id)->first();
 
         if (!$configuration) {
-            $this->error("Can't find configuration for this user", 404);
+            return $this->error("Can't find configuration for this user", 404);
         }
 
         $rules = [
-            'user_id'         => 'required|unique:users',
-            'version_history' => 'required|boolean',
-            'token_time'      => 'required|numeric',
+            'user_id'         => 'numeric|unique:users',
+            'version_history' => 'boolean',
+            'token_time'      => 'numeric',
         ];
 
         $this->validateRequest($request, $rules);
 
-        $configuration->save(
-            [
-                'user_id'         => $loggedUser->id,
-                'version_history' => $request->get('version_history'),
-                'token_time'      => $request->get('token_time'),]
-        );
+        $configuration->version_history
+            = ($request->get('version_history') !== null)
+            ? $request->get('version_history')
+            : $configuration->version_history;
+        $configuration->token_time = $request->get('token_time')
+            ? $request->get('token_time') : $configuration->token_time;
+        $configuration->save();
         $message
-            = "The configuration for user with with id $loggedUser->id has been created";
+            = "Configuration for user with id $loggedUser->id has been updated";
 
-        return $this->success(['data' => $message,], 201);
+        return $this->success(['data' => $message,], 200);
 
     }
 
@@ -114,7 +116,7 @@ class ConfigurationController extends Controller
                 'token_time'      => $request->get('token_time'),]
         );
         $message
-            = "The configuration for user with with id $loggedUser->id has been created";
+            = "Configuration for user with id $loggedUser->id has been created";
 
         if ($configuration) {
             return $this->success(['data' => $message,], 201);

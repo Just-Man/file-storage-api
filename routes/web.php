@@ -50,11 +50,33 @@ $app->group(
     ],
     function () use ($app) {
         // Users.
-        $app->get('/users/', 'AccountController@index');
-        $app->post('/users/', 'AccountController@store');
-        $app->get('/users/{user_id}', 'AccountController@show');
-        $app->put('/users/{user_id}', 'AccountController@update');
-        $app->delete('/users/{user_id}', 'AccountController@destroy');
+        //$app->get('/users/', 'AccountController@index');
+        $app->post(
+            '/users/create',
+            'AccountController@store'
+        );
+        $app->get(
+            '/users/{user_id}',
+            'AccountController@show'
+        );
+        $app->put(
+            '/users/{user_id}/edit',
+            'AccountController@update'
+        );
+        $app->delete(
+            '/users/{user_id}/delete',
+            'AccountController@destroy'
+        );
+        
+        // Configurations.
+        $app->get(
+            '/configurations/{configuration_id}',
+            'ConfigurationController@show'
+        );
+        $app->put(
+            '/configurations/{configuration_id}/edit',
+            'ConfigurationController@update'
+        );
 
         // Files.
         //        $app->get('/files', $callback);

@@ -15,7 +15,6 @@ use App\Configuration;
 use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Lcobucci\JWT\Builder;
 use Lcobucci\JWT\Signer\Hmac\Sha256;
 
@@ -162,14 +161,18 @@ class AccountController extends Controller
 
         $rules = [
             'name'     => 'string|min:3',
-            'email'    => 'email|unique:users',
+            'email'    => 'email',
             'password' => 'min:6',
         ];
 
         $this->validateRequest($request, $rules);
-
-        $user->email = $request->get('email');
-        $user->password = Hash::make($request->get('password'));
+        $user->name = $request->get('name') ? $request->get('name')
+            : $user->name;
+        $user->email = $request->get('email') ? $request->get('email')
+            : $user->email;
+        $user->password = $request->get('password') ? password_hash(
+            $request->get('password'), PASSWORD_BCRYPT
+        ) : $user->password;
 
         $user->save();
 
