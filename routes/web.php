@@ -18,9 +18,8 @@
  * @link     localhost
  */
 
-use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Event;
-
+/*
 Event::listen(
     'Illuminate\Database\Events\QueryExecuted',
     function ($query) {
@@ -30,9 +29,9 @@ Event::listen(
             'time'   => $query->time,
         ];
 
-        print_r(json_encode($data) . PHP_EOL);
+        print_r(json_encode($data) . ',' . PHP_EOL);
     }
-);
+);*/
 
 $app->group(
     [
@@ -63,7 +62,7 @@ $app->group(
             '/users/{user_id}/edit',
             'AccountController@update'
         );
-        $app->delete(
+        $app->post(
             '/users/{user_id}/delete',
             'AccountController@destroy'
         );
@@ -79,10 +78,21 @@ $app->group(
         );
 
         // Files.
-        //        $app->get('/files', $callback);
-        //        $app->put('/save', $callback);
-        //        $app->get('/files/{id}', $callback);
-        //        $app->delete('/files/{id}/delete', $callback);
-        //        $app->delete('/delete', $callback);
+        $app->get(
+            '/files/{id}',
+            'FileController@index'
+        );
+        $app->get(
+            '/files/{id}/{fileName}',
+            'FileController@show'
+        );
+        $app->post(
+            '/files/{id}/upload',
+            'FileController@upload'
+        );
+        $app->delete(
+            '/files/{id}/delete',
+            'FileController@delete'
+        );
     }
 );

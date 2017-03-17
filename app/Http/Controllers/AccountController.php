@@ -71,6 +71,12 @@ class AccountController extends Controller
             ]
         );
 
+        $configuration = new ConfigurationController();
+        $configuration->create($request, $user->id);
+
+        $fileStorage = new FileController();
+        $fileStorage->createUserDirectory($user->id);
+
         return response()->json(
             ['data' => "The user with with id {$user->id} has been created"],
             201
@@ -97,18 +103,9 @@ class AccountController extends Controller
         if (!password_verify($password, $user->password)) {
             return $this->error('Password doesn\'t match', 400);
         }
-        $configurations = Configuration::where('user_id', $user->id)->first();
 
-        $signer = new Sha256();
-        $token = (new Builder())
-            ->setIssuer("Api")
-            ->setAudience("Client Side")
-            ->setIssuedAt(time())
-            ->setExpiration(time() + $configurations->token_time)
-            ->set('user_id', $user->id)
-            ->set('name', $user->name)
-            ->sign($signer, env('TOKEN_KEY'))
-            ->getToken();
+        $token = $this->_createUserToken($user);
+
         $data = [
             'token' => token_get_all($token),
             'user'  => [
@@ -205,5 +202,31 @@ class AccountController extends Controller
         return $this->success(
             ['data' => "The user with with id {$id} has been deleted"], 200
         );
+    }
+
+    /**
+     * Function create user token
+     *
+     * @param User $user User object
+     *
+     * @return \Lcobucci\JWT\Token
+     */
+    private function _createUserToken($user)
+    {
+        $configuration = new ConfigurationController();
+        $userConfiguration = $configuration->getUserConfigurations($user->id);
+
+        $signer = new Sha256();
+        $token = (new Builder())
+            ->setIssuer("Api")
+            ->setAudience("Client Side")
+            ->setIssuedAt(time())
+            ->setExpiration(time() + $userConfiguration->token_time)
+            ->set('user_id', $user->id)
+            ->set('name', $user->name)
+            ->sign($signer, env('TOKEN_KEY'))
+            ->getToken();
+
+        return $token;
     }
 }

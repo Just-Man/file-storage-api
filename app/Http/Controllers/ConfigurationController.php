@@ -40,12 +40,26 @@ class ConfigurationController extends Controller
             return $this->error("You can view only yours configuration", 404);
         }
 
-        $configuration = Configuration::where('user_id', $id)->first();
+        $configuration = $this->getUserConfigurations($id);
         if ($configuration) {
             return $this->success($configuration, 200);
         }
 
         return $this->error("Can't find configuration for this user", 404);
+    }
+
+    /**
+     * Function return user configurations
+     *
+     * @param int $id User id
+     *
+     * @return array $configuration Configuration
+     */
+    public function getUserConfigurations($id)
+    {
+        $configuration = Configuration::where('user_id', $id)->first();
+
+        return $configuration;
     }
 
     /**
@@ -98,25 +112,29 @@ class ConfigurationController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function create($request)
+    public function create($request, $userId)
     {
-        $loggedUser = Auth::user();
         $rules = [
-            'user_id'         => 'required|unique:users',
-            'version_history' => 'required|boolean',
-            'token_time'      => 'required|numeric',
+            'user_id'         => 'unique:users',
+            'version_history' => 'boolean',
+            'token_time'      => 'numeric',
         ];
 
         $this->validateRequest($request, $rules);
 
+        $version_history = $request->get('version_history')
+            ? $request->get('version_history') : env('VERSION_HISTORY');
+        $token_time = $request->get('token_time')
+            ? $request->get('token_time') : env('TOKEN_TIME');
+
         $configuration = Configuration::create(
             [
-                'user_id'         => $loggedUser->id,
-                'version_history' => $request->get('version_history'),
-                'token_time'      => $request->get('token_time'),]
+                'user_id'         => $userId,
+                'version_history' => $version_history,
+                'token_time'      => $token_time,]
         );
         $message
-            = "Configuration for user with id $loggedUser->id has been created";
+            = "Configuration for user with id $userId has been created";
 
         if ($configuration) {
             return $this->success(['data' => $message,], 201);
