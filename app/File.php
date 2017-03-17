@@ -1,6 +1,6 @@
 <?php
 /**
- * Configuration model
+ * File Model
  *
  * Php version 5.6 || 7.0
  *
@@ -16,27 +16,34 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Configuration model
- *
- * Php version 5.6 || 7.0
+ * Class File
  *
  * @category Interview
- * @package  App\Models
+ * @package  App
  * @author   Georgi Staykov <g.staikov85@gmail.com>
  * @license  Just Man
  * @link     localhost
  */
-class Configuration extends Model
+class File extends Model
 {
-
     /**
      * The attributes that are mass assignable.
      *
      * @var array
      */
     protected $fillable = [
-        'user_id', 'version_history', 'token_time'
+        'name', 'deleted', 'version'
     ];
 
-    protected $table = 'user_configuration';
+    // protected $table = 'user_files';
+
+    /**
+     * Define relation with User
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function users()
+    {
+        return $this->belongsToMany('App\User', 'user_file');
+    }
 }

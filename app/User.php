@@ -49,4 +49,14 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
     protected $hidden = [
         'password',
     ];
+
+    /**
+     * Define relation with File
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function files()
+    {
+        return $this->belongsToMany('App\File', 'user_file');
+    }
 }
