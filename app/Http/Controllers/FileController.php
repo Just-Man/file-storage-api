@@ -47,7 +47,7 @@ class FileController extends Controller
                 404
             );
         }
-        $files = $this->getUserFiles($accountId);
+        $files = $this->getUserFiles($loggedUser);
 
         return $this->success($files, 200);
     }
@@ -64,14 +64,23 @@ class FileController extends Controller
         $loggedUser = Auth::user();
         $files = $request->allFiles();
 
+        if (!count($files)) {
+            return $this->error('You must choose file to upload', 403);
+        }
         foreach ($files as $file) {
             $fileName = $file->getClientOriginalName();
-            $userPath = $this->_userPath($loggedUser->id);
+            $isValidFileName = $this->_validateFileName($fileName);
+            if (count($isValidFileName['error'])) {
+                return $this->error(implode(',', $isValidFileName['error']), 400);
+            }
+            $userPath = $this->_userPath($loggedUser->name);
 
-            $version = $this->_versionCheck($fileName, $loggedUser, $userPath);
+            $exist = $this->_versionCheck($fileName, $loggedUser, $userPath);
 
             $is_moved = $file->move($userPath, $fileName);
-            if ($is_moved) {
+            $version = $exist ? $exist->version : false;
+
+            if ($is_moved && $version === false) {
                 $file = $this->_storeToDatabase($fileName, $version);
                 $fileId = $file->getAttribute('id');
                 $loggedUser->files()->attach($fileId);
@@ -79,27 +88,27 @@ class FileController extends Controller
         }
         $message = 'success';
 
-        return $this->success(['data' => $message,], 200);
+        return $this->success(['Upload' => $message,], 200);
     }
 
     /**
      * Return file with current file name
      *
-     * @param string $name file name
+     * @param integer $id   user id
+     * @param string  $name file name
      *
      * @return \Illuminate\Http\JsonResponse
      */
-    public function show($name)
+    public function show($id, $name)
     {
-        $user = Auth::user();
-        $userFiles = $this->getUserFiles($user->id);
+        $loggedUser = Auth::user();
+        if ($id != $loggedUser->id) {
+            return $this->error("You can view only yours configuration", 404);
+        }
+        $userFiles = $this->getUserFiles($loggedUser, $name);
 
-        foreach ($userFiles as $userFile) {
-            if ($name == $userFile->name) {
-
-                return $this->success($userFile, 200);
-
-            }
+        if ($userFiles) {
+            return $this->success(['file' => $userFiles], 201);
         }
 
         return $this->error('We can\'t find this file name', 404);
@@ -115,12 +124,40 @@ class FileController extends Controller
     public function delete($name)
     {
         $loggedUser = Auth::user();
-        $userPath = $this->_userPath($loggedUser->id);
-        $this->_versionCheck($name, $loggedUser, $userPath);
-        File::update('deleted', true)->where('name', $name);
+        $userPath = $this->_userPath($loggedUser->name);
+        $file = $this->_versionCheck($name, $loggedUser, $userPath);
+        $file->deleted = true;
+        $file->update();
         $message = 'success';
 
         return $this->success(['data' => $message,], 200);
+    }
+
+    /**
+     * Validate File name
+     *
+     * @param string $fileName File name
+     *
+     * @return array
+     */
+    private function _validateFileName($fileName)
+    {
+        $isValid['error'] = false;
+        $size = mb_strlen($fileName, "UTF-8");
+        if ($size > 1024) {
+            $isValid['error'][] = 'Max allowed size is 1024';
+        }
+        $denied = ["\\\\","\\\^","\\\`","\\\>","\\\<","\\\{","\\\}","\]","\[","\\\#","\\\%",
+        "\~","\,"];
+
+        foreach ($denied as $item) {
+            $pass = preg_match_all("!$item!", $fileName, $matches);
+            if (!$pass) {
+                $isValid['error'][] = sprintf("you can't use %s", substr($item, -1));
+            }
+        }
+
+        return $isValid;
     }
 
     /**
@@ -134,29 +171,49 @@ class FileController extends Controller
     public function createUserDirectory($userPath, $version = null)
     {
         if (!file_exists($userPath)) {
-            $success = mkdir($userPath, 0775, true);
+            mkdir($userPath, 0775, true);
         }
         if ($version !== false) {
             $versionPath = $userPath . '/version_' . ($version + 1);
             if (!file_exists($versionPath)) {
-                $success = mkdir($versionPath, 0775, true);
+                mkdir($versionPath, 0775, true);
             }
         }
     }
 
     /**
-     *  Function get all user files
+     *  Function get user file/s
      *
-     * @param int $id User id
+     * @param User   $loggedUser User object
+     * @param string $filename   File name
      *
-     * @return array $files Array with user files
+     * @return \Illuminate\Http\JsonResponse $files Array with user files
      */
-    protected function getUserFiles($id)
+    protected function getUserFiles($loggedUser, $filename = '')
     {
-        $basePath = env('FILE_STORAGE_PATH');
-        $files = scandir($basePath . '/' . $id);
+        $userPath = $this->_userPath($loggedUser->name);
+        if ($filename) {
+            $file = $this->_checkIsFileExist($loggedUser, $filename);
+            $file = $file->toArray();
+            $filePath = $userPath . $file['name'];
+            $content_type = mime_content_type($filePath);
 
-        return $files;
+            header("Content-Type: \"$content_type\"");
+            header("Content-Disposition: attachment; filename=\"$filename\"");
+            header('Pragma: no-cache');
+            readfile($filePath);
+            exit;
+
+        } else {
+            $files = $loggedUser->files()->where('deleted', false)->get();
+            $files = $files->toArray();
+            foreach ($files as $key => $file) {
+                unset($file['pivot']);
+                $files[$key] = $file;
+            }
+        }
+
+        return $this->success($files, 200);
     }
 
     /**
@@ -183,14 +240,14 @@ class FileController extends Controller
     /**
      * Create user folder path
      *
-     * @param integer $userId User id
+     * @param string $userName User name
      *
      * @return string $userPath user folder path
      */
-    private function _userPath($userId)
+    private function _userPath($userName)
     {
         $basePath = env('FILE_STORAGE_PATH');
-        $userPath = $basePath . '/' . $userId . '/';
+        $userPath = $basePath . '/' . $userName . '/';
 
         return $userPath;
     }
@@ -205,7 +262,10 @@ class FileController extends Controller
      */
     private function _checkIsFileExist($loggedUser, $filename)
     {
-        $exist = $loggedUser->files()->where('name', $filename)->first();
+        $exist = $loggedUser->files()->where(
+            ['name' => $filename,
+             'deleted' => false]
+        )->first();
 
         return $exist;
     }
@@ -224,8 +284,7 @@ class FileController extends Controller
         if ($version == false) {
             $currentFolder = $userPath;
         } else {
-            $previewsVersion = $version;
-            $currentFolder = $userPath . 'version_' . $previewsVersion . '/';
+            $currentFolder = $userPath . 'version_' . $version . '/';
         }
         $newFolder = $userPath . 'version_' . ($version + 1) . '/';
         if (copy($currentFolder . $fileName, $newFolder . $fileName)) {
@@ -249,8 +308,10 @@ class FileController extends Controller
         if ($version !== false) {
             $this->createUserDirectory($userPath, $version);
             $this->_moveFileToVersionFolder($userPath, $version, $fileName);
+            $exist->updated_at = time();
+            $exist->update();
         }
 
-        return $version;
+        return $exist;
     }
 }
