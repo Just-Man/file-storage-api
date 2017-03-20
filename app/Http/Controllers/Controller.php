@@ -11,12 +11,13 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Laravel\Lumen\Routing\Controller as BaseController;
 
 /**
  * Class Controller
  *
- * @category Interview
+ * @category Practice
  * @package  App\Http\Controllers
  * @author   Georgi Staykov <g.staikov85@gmail.com>
  * @license  Just Man
@@ -24,6 +25,25 @@ use Laravel\Lumen\Routing\Controller as BaseController;
  */
 class Controller extends BaseController
 {
+    protected $user;
+    protected $userId;
+    protected $userName;
+    protected $userPath;
+
+    /**
+     * Controller constructor.
+     */
+    function __construct()
+    {
+        $user = Auth::user();
+        if ($user) {
+            $this->user = $user;
+            $this->userId = $user->id;
+            $this->userName = $user->name;
+            $this->userPath = $this->_userPath($user->name);
+        }
+    }
+
     /**
      * Success
      *
@@ -61,5 +81,20 @@ class Controller extends BaseController
     public function validateRequest(Request $request, $rules)
     {
         $this->validate($request, $rules);
+    }
+
+    /**
+     * Create user folder path
+     *
+     * @param integer $userName User name
+     *
+     * @return string $userPath user folder path
+     */
+    private function _userPath($userName)
+    {
+        $basePath = env('FILE_STORAGE_PATH');
+        $userPath = $basePath . '/' . $userName . '/';
+
+        return $userPath;
     }
 }

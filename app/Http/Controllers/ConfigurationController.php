@@ -36,7 +36,7 @@ class ConfigurationController extends Controller
     public function show($id)
     {
         $loggedUser = Auth::user();
-        if ($id != $loggedUser->id) {
+        if ($id != $this->userId) {
             return $this->error("You can view only yours configuration", 404);
         }
 

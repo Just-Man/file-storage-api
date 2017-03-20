@@ -11,10 +11,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Configuration;
 use App\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Lcobucci\JWT\Builder;
 use Lcobucci\JWT\Signer\Hmac\Sha256;
 
@@ -126,17 +124,15 @@ class AccountController extends Controller
      */
     public function show($id)
     {
-        $loggedUser = Auth::user();
-        if ($id != $loggedUser['id']) {
+        if ($id != $this->userId) {
             return $this->error("You can view only your account", 404);
         }
-        $user = $loggedUser;
 
-        if (!$user) {
+        if (!$this->user) {
             return $this->error("The user with {$id} doesn't exist", 404);
         }
 
-        return $this->success(['user' => $user], 200);
+        return $this->success(['user' => $this->user], 200);
     }
 
     /**
