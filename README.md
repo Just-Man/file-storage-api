@@ -35,9 +35,9 @@ The REST protocol details, like endpoints, states, headers, etc., are up to you.
 1. Download project 
 
 ```bash
-$ git clone <project-path>
+$ git clone https://github.com/Just-Man/file-storage-api.git
 ```
-or download as zip file from [here]()
+or download as zip file from [here](https://github.com/Just-Man/file-storage-api/archive/develop.zip)
 
 2. After downloading project you must enter in project root folder with 
 ```bash
