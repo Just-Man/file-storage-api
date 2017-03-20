@@ -75,7 +75,7 @@ class AccountController extends Controller
         $configuration->create($request, $user->id);
 
         $fileStorage = new FileController();
-        $fileStorage->createUserDirectory($user->id);
+        $fileStorage->createUserDirectory($user->name);
 
         return response()->json(
             ['data' => "The user with with id {$user->id} has been created"],

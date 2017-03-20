@@ -29,7 +29,7 @@ Event::listen(
             'time'   => $query->time,
         ];
 
-        print_r(json_encode($data) . ',' . PHP_EOL);
+        print_r(json_encode($data) . ',');
     }
 );*/
 
@@ -62,7 +62,7 @@ $app->group(
             '/users/{user_id}/edit',
             'AccountController@update'
         );
-        $app->post(
+        $app->delete(
             '/users/{user_id}/delete',
             'AccountController@destroy'
         );
@@ -86,12 +86,12 @@ $app->group(
             '/files/{id}/{fileName}',
             'FileController@show'
         );
-        $app->post(
+        $app->put(
             '/files/{id}/upload',
             'FileController@upload'
         );
         $app->delete(
-            '/files/{id}/delete',
+            '/files/{id}/{fileName}/delete',
             'FileController@delete'
         );
     }

@@ -87,7 +87,7 @@ class Handler extends ExceptionHandler
             $error = ['status code'   => $e->getStatusCode(),];
         }
 
-        return response()->json(['error' => $error]);
-        // return parent::render($request, $e);
+        // return response()->json(['error' => $error]);
+        return parent::render($request, $e);
     }
 }
